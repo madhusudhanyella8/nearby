@@ -2,6 +2,7 @@
 
 import { useEffect, useState, use } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import type { IBusiness } from "@/types";
 
 export default function BusinessDetailPage({
@@ -89,6 +90,23 @@ export default function BusinessDetailPage({
             </div>
           </div>
         </div>
+
+        {/* Photo Gallery */}
+        {business.photos && business.photos.length > 0 && (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-1">
+            {business.photos.map((photo, idx) => (
+              <div key={photo.publicId} className="relative aspect-square">
+                <Image
+                  src={photo.url}
+                  alt={`${business.name} photo ${idx + 1}`}
+                  fill
+                  className="object-cover"
+                  sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
+                />
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Body */}
         <div className="p-8">

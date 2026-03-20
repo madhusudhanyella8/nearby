@@ -26,7 +26,6 @@ export default function AdminUsersPage() {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [createForm, setCreateForm] = useState({
     name: "",
-    email: "",
     phone: "",
     password: "",
     role: "agent",
@@ -86,7 +85,7 @@ export default function AdminUsersPage() {
     }
 
     setShowCreateForm(false);
-    setCreateForm({ name: "", email: "", phone: "", password: "", role: "agent" });
+    setCreateForm({ name: "", phone: "", password: "", role: "agent" });
     fetchUsers();
   }
 
@@ -133,7 +132,7 @@ export default function AdminUsersPage() {
             </div>
           )}
           <form onSubmit={handleCreate} className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               <input
                 type="text"
                 value={createForm.name}
@@ -145,22 +144,16 @@ export default function AdminUsersPage() {
                 className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
               <input
-                type="email"
-                value={createForm.email}
-                onChange={(e) =>
-                  setCreateForm((f) => ({ ...f, email: e.target.value }))
-                }
-                required
-                placeholder="Email"
-                className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              <input
                 type="tel"
                 value={createForm.phone}
                 onChange={(e) =>
                   setCreateForm((f) => ({ ...f, phone: e.target.value }))
                 }
-                placeholder="Phone (optional)"
+                required
+                placeholder="10-digit mobile *"
+                maxLength={10}
+                pattern="[6-9][0-9]{9}"
+                title="Enter 10-digit mobile number"
                 className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
               <input
@@ -242,10 +235,7 @@ export default function AdminUsersPage() {
                     </span>
                   )}
                 </div>
-                <p className="text-sm text-gray-500">{user.email}</p>
-                {user.phone && (
-                  <p className="text-xs text-gray-400">{user.phone}</p>
-                )}
+                <p className="text-sm text-gray-500">{user.phone}</p>
               </div>
               <div className="flex items-center gap-2">
                 {user._id !== session.user.id && (

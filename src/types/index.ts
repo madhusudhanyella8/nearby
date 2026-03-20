@@ -32,7 +32,7 @@ export interface IBusiness {
   name: string;
   description: string;
   category: { _id: string; name: string; slug: string; icon: string };
-  owner: { _id: string; name: string; email?: string };
+  owner: { _id: string; name: string; phone?: string };
   phone: string;
   address: string;
   city: string;
@@ -41,6 +41,7 @@ export interface IBusiness {
     type: "Point";
     coordinates: [number, number];
   };
+  photos: { url: string; publicId: string }[];
   rating: number;
   reviewCount: number;
   isActive: boolean;
@@ -57,7 +58,7 @@ export interface ICategory {
 export interface IRequest {
   _id: string;
   type: "new_business" | "role_upgrade";
-  requestedBy: { _id: string; name: string; email: string };
+  requestedBy: { _id: string; name: string; phone: string };
   businessDetails?: {
     name: string;
     description: string;
@@ -87,7 +88,6 @@ export interface IFavorite {
 export interface IUserItem {
   _id: string;
   name: string;
-  email: string;
   phone: string;
   role: string;
   mustChangePassword: boolean;

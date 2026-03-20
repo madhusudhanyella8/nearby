@@ -15,7 +15,7 @@ export async function GET() {
 
     const businesses = await Business.find()
       .populate("category")
-      .populate("owner", "name email")
+      .populate("owner", "name phone")
       .sort({ createdAt: -1 });
 
     return NextResponse.json({ businesses });

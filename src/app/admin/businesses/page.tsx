@@ -139,7 +139,7 @@ export default function AdminBusinessesPage() {
                   {biz.category?.name} · {biz.area}, {biz.city}
                 </p>
                 <p className="text-xs text-gray-400 mt-0.5">
-                  Owner: {biz.owner?.name || "N/A"} ({biz.owner?.email || "N/A"}) · Phone: {biz.phone}
+                  Owner: {biz.owner?.name || "N/A"} ({biz.owner?.phone || "N/A"}) · Biz Phone: {biz.phone}
                 </p>
               </div>
               <button

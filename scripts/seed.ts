@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
 
-const MONGODB_URI = process.env.MONGODB_URI || "mongodb://localhost:27017/nearby";
+const MONGODB_URI = process.env.MONGODB_URI || "mongodb+srv://madhusudhanyella8_db_user:E6KbeBlWA21avzv6@cluster0.hxqbiig.mongodb.net/vipani?retryWrites=true&w=majority";
 
 // --- Schemas (inline to avoid path alias issues in scripts) ---
 
@@ -14,8 +14,7 @@ const CategorySchema = new mongoose.Schema({
 const UserSchema = new mongoose.Schema(
   {
     name: { type: String, required: true },
-    email: { type: String, required: true, unique: true, lowercase: true },
-    phone: { type: String, default: "" },
+    phone: { type: String, required: true, unique: true },
     password: { type: String, required: true },
     role: {
       type: String,
@@ -45,6 +44,10 @@ const BusinessSchema = new mongoose.Schema(
     },
     rating: { type: Number, default: 0 },
     reviewCount: { type: Number, default: 0 },
+    photos: {
+      type: [{ url: String, publicId: String }],
+      default: [],
+    },
     isActive: { type: Boolean, default: true },
   },
   { timestamps: true }
@@ -117,7 +120,7 @@ async function seed() {
   // Create admin
   const admin = await User.create({
     name: "VIPANI Admin",
-    email: "admin@vipani.com",
+    phone: "9999900000",
     password: hashedPassword,
     role: "admin",
   });
@@ -125,8 +128,7 @@ async function seed() {
   // Create field agent (created by admin)
   const agent = await User.create({
     name: "Field Agent Ravi",
-    email: "agent@vipani.com",
-    phone: "+91 99999 00001",
+    phone: "9999900001",
     password: hashedPassword,
     role: "agent",
     createdBy: admin._id,
@@ -135,7 +137,7 @@ async function seed() {
   // Create business owner (created by agent, password already changed for demo)
   const owner = await User.create({
     name: "Demo Business Owner",
-    email: "owner@demo.com",
+    phone: "9999900002",
     password: hashedPassword,
     role: "business_owner",
     mustChangePassword: false, // false for demo convenience
@@ -145,16 +147,16 @@ async function seed() {
   // Create end user
   await User.create({
     name: "Demo User",
-    email: "user@demo.com",
+    phone: "9999900003",
     password: hashedPassword,
     role: "user",
   });
 
   console.log("Seeded 4 demo users:");
-  console.log("  Admin:          admin@vipani.com / password123");
-  console.log("  Field Agent:    agent@vipani.com / password123");
-  console.log("  Business Owner: owner@demo.com / password123");
-  console.log("  End User:       user@demo.com / password123");
+  console.log("  Admin:          9999900000 / password123");
+  console.log("  Field Agent:    9999900001 / password123");
+  console.log("  Business Owner: 9999900002 / password123");
+  console.log("  End User:       9999900003 / password123");
 
   // Seed sample businesses in Bangalore
   const catMap = Object.fromEntries(cats.map((c) => [c.slug, c._id]));
@@ -164,7 +166,7 @@ async function seed() {
       name: "Sri Lakshmi Gold Palace",
       description: "Premium gold and diamond jewelry. Trusted since 1990. BIS hallmarked gold ornaments.",
       category: catMap["jewelry"],
-      phone: "+91 98765 43210",
+      phone: "9876543210",
       address: "45, Commercial Street",
       city: "bangalore",
       area: "shivajinagar",
@@ -176,7 +178,7 @@ async function seed() {
       name: "Kaveri Gold House",
       description: "Wide collection of gold, silver, and platinum jewelry for all occasions.",
       category: catMap["jewelry"],
-      phone: "+91 98765 43211",
+      phone: "9876543211",
       address: "12, Chickpet Main Road",
       city: "bangalore",
       area: "chickpet",
@@ -188,7 +190,7 @@ async function seed() {
       name: "Bangalore Fresh Mart",
       description: "Fresh vegetables, fruits, and daily essentials. Free delivery above Rs 500.",
       category: catMap["grocery"],
-      phone: "+91 98765 43212",
+      phone: "9876543212",
       address: "78, 80 Feet Road",
       city: "bangalore",
       area: "koramangala",
@@ -200,7 +202,7 @@ async function seed() {
       name: "Spice Garden Restaurant",
       description: "Authentic South Indian cuisine. Famous for our dosas and biryanis.",
       category: catMap["restaurants"],
-      phone: "+91 98765 43213",
+      phone: "9876543213",
       address: "23, 100 Feet Road",
       city: "bangalore",
       area: "indiranagar",
@@ -212,7 +214,7 @@ async function seed() {
       name: "MedPlus Pharmacy",
       description: "24/7 pharmacy with all prescription and OTC medicines. Free health check-ups on weekends.",
       category: catMap["medical"],
-      phone: "+91 98765 43214",
+      phone: "9876543214",
       address: "5, MG Road",
       city: "bangalore",
       area: "mg road",
@@ -224,7 +226,7 @@ async function seed() {
       name: "Tech World Electronics",
       description: "Latest smartphones, laptops, and accessories. Authorized service center.",
       category: catMap["electronics"],
-      phone: "+91 98765 43215",
+      phone: "9876543215",
       address: "156, SP Road",
       city: "bangalore",
       area: "sp road",
@@ -236,7 +238,7 @@ async function seed() {
       name: "Fashion Hub",
       description: "Trendy clothing for men, women, and kids. Affordable prices, latest styles.",
       category: catMap["clothing"],
-      phone: "+91 98765 43216",
+      phone: "9876543216",
       address: "89, Brigade Road",
       city: "bangalore",
       area: "brigade road",
@@ -248,7 +250,7 @@ async function seed() {
       name: "Green Basket Organics",
       description: "100% organic groceries. Farm-fresh produce delivered daily.",
       category: catMap["grocery"],
-      phone: "+91 98765 43217",
+      phone: "9876543217",
       address: "34, HSR Layout",
       city: "bangalore",
       area: "hsr layout",

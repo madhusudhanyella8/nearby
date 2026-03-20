@@ -13,6 +13,7 @@ export interface IBusiness extends Document {
     type: "Point";
     coordinates: [number, number];
   };
+  photos: { url: string; publicId: string }[];
   rating: number;
   reviewCount: number;
   isActive: boolean;
@@ -36,6 +37,14 @@ const BusinessSchema = new Schema<IBusiness>(
     location: {
       type: { type: String, enum: ["Point"], default: "Point" },
       coordinates: { type: [Number], required: true },
+    },
+    photos: {
+      type: [{ url: String, publicId: String }],
+      default: [],
+      validate: {
+        validator: (val: unknown[]) => val.length <= 5,
+        message: "Maximum 5 photos allowed",
+      },
     },
     rating: { type: Number, default: 0, min: 0, max: 5 },
     reviewCount: { type: Number, default: 0 },

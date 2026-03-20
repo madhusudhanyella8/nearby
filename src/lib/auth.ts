@@ -2,6 +2,7 @@ import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { connectDB } from "./mongodb";
+import { normalizePhone } from "./phone";
 import User from "@/models/User";
 
 export const authOptions: NextAuthOptions = {
@@ -9,16 +10,16 @@ export const authOptions: NextAuthOptions = {
     CredentialsProvider({
       name: "credentials",
       credentials: {
-        email: { label: "Email", type: "email" },
+        // "phone" is passed via the NextAuth "email" field name (internal convention)
+        email: { label: "Phone", type: "text" },
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
 
         await connectDB();
-        const user = await User.findOne({
-          email: credentials.email.toLowerCase(),
-        });
+        const phone = normalizePhone(credentials.email);
+        const user = await User.findOne({ phone });
         if (!user) return null;
         if (!user.isActive) return null;
 
@@ -28,10 +29,10 @@ export const authOptions: NextAuthOptions = {
         return {
           id: user._id.toString(),
           name: user.name,
-          email: user.email,
+          email: phone, // NextAuth requires email field; we use phone as the identifier
           role: user.role,
           mustChangePassword: user.mustChangePassword,
-          phone: user.phone || "",
+          phone: user.phone,
         };
       },
     }),

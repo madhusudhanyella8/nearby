@@ -113,6 +113,12 @@ export default function DashboardPage() {
                 >
                   View
                 </Link>
+                <Link
+                  href={`/dashboard/edit/${biz._id}`}
+                  className="px-4 py-2 text-sm text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50"
+                >
+                  Edit
+                </Link>
                 <button
                   onClick={() => handleDeactivate(biz._id)}
                   className="px-4 py-2 text-sm text-red-600 border border-red-200 rounded-lg hover:bg-red-50"

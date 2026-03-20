@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import bcrypt from "bcryptjs";
 import { authOptions } from "@/lib/auth";
 import { connectDB } from "@/lib/mongodb";
+import { normalizePhone, isValidIndianPhone } from "@/lib/phone";
 import User from "@/models/User";
 import Business from "@/models/Business";
 
@@ -26,7 +27,6 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const {
       ownerName,
-      ownerEmail,
       ownerPhone,
       oneTimePassword,
       businessName,
@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
 
     if (
       !ownerName ||
-      !ownerEmail ||
+      !ownerPhone ||
       !businessName ||
       !businessCategory ||
       !businessPhone ||
@@ -56,13 +56,23 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const normalizedOwnerPhone = normalizePhone(ownerPhone);
+    if (!isValidIndianPhone(normalizedOwnerPhone)) {
+      return NextResponse.json(
+        { error: "Please enter a valid 10-digit Indian mobile number for the owner" },
+        { status: 400 }
+      );
+    }
+
+    const normalizedBizPhone = normalizePhone(businessPhone);
+
     await connectDB();
 
     const tempPassword = oneTimePassword || generatePassword();
     const hashedPassword = await bcrypt.hash(tempPassword, 10);
 
-    // Check if owner email already exists
-    let owner = await User.findOne({ email: ownerEmail.toLowerCase() });
+    // Check if owner phone already exists
+    let owner = await User.findOne({ phone: normalizedOwnerPhone });
 
     if (owner) {
       if (owner.role === "business_owner") {
@@ -74,11 +84,10 @@ export async function POST(req: NextRequest) {
         owner.mustChangePassword = true;
         owner.createdBy = session.user.id as unknown as typeof owner.createdBy;
         owner.name = ownerName;
-        if (ownerPhone) owner.phone = ownerPhone;
         await owner.save();
       } else {
         return NextResponse.json(
-          { error: "This email belongs to an admin or agent account" },
+          { error: "This phone number belongs to an admin or agent account" },
           { status: 409 }
         );
       }
@@ -86,8 +95,7 @@ export async function POST(req: NextRequest) {
       // Create new Type3 user
       owner = await User.create({
         name: ownerName,
-        email: ownerEmail.toLowerCase(),
-        phone: ownerPhone || "",
+        phone: normalizedOwnerPhone,
         password: hashedPassword,
         role: "business_owner",
         mustChangePassword: true,
@@ -101,7 +109,7 @@ export async function POST(req: NextRequest) {
       description: businessDescription || "",
       category: businessCategory,
       owner: owner._id,
-      phone: businessPhone,
+      phone: normalizedBizPhone,
       address: businessAddress,
       city: businessCity.toLowerCase(),
       area: businessArea.toLowerCase(),
@@ -118,7 +126,7 @@ export async function POST(req: NextRequest) {
       {
         message: "Business and owner account created successfully",
         business: { _id: business._id, name: business.name },
-        owner: { _id: owner._id, email: owner.email },
+        owner: { _id: owner._id, phone: owner.phone },
         temporaryPassword: tempPassword,
       },
       { status: 201 }

@@ -129,7 +129,7 @@ export default function RequestBusinessPage() {
         <span className="text-2xl">📞</span>
         <div>
           <p className="text-sm text-blue-600">
-            Or call directly: <strong>+91 99999 00001</strong>
+            Or call directly: <strong>9999900001</strong>
           </p>
         </div>
       </div>
@@ -197,7 +197,10 @@ export default function RequestBusinessPage() {
               onChange={(e) => updateForm("phone", e.target.value)}
               required
               className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="+91 98765 43210"
+              placeholder="9876543210"
+              maxLength={10}
+              pattern="[6-9][0-9]{9}"
+              title="Enter 10-digit mobile number"
             />
           </div>
 

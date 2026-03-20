@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import bcrypt from "bcryptjs";
 import { authOptions } from "@/lib/auth";
 import { connectDB } from "@/lib/mongodb";
+import { normalizePhone, isValidIndianPhone } from "@/lib/phone";
 import User from "@/models/User";
 
 export async function GET(req: NextRequest) {
@@ -21,7 +22,7 @@ export async function GET(req: NextRequest) {
 
     const users = await User.find(filter)
       .select("-password")
-      .populate("createdBy", "name email")
+      .populate("createdBy", "name phone")
       .sort({ createdAt: -1 });
 
     return NextResponse.json({ users });
@@ -40,11 +41,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { name, email, phone, password, role } = await req.json();
+    const { name, phone, password, role } = await req.json();
 
-    if (!name || !email || !password || !role) {
+    if (!name || !phone || !password || !role) {
       return NextResponse.json(
-        { error: "Name, email, password, and role are required" },
+        { error: "Name, phone, password, and role are required" },
         { status: 400 }
       );
     }
@@ -56,12 +57,20 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const normalizedPhone = normalizePhone(phone);
+    if (!isValidIndianPhone(normalizedPhone)) {
+      return NextResponse.json(
+        { error: "Please enter a valid 10-digit Indian mobile number" },
+        { status: 400 }
+      );
+    }
+
     await connectDB();
 
-    const existing = await User.findOne({ email: email.toLowerCase() });
+    const existing = await User.findOne({ phone: normalizedPhone });
     if (existing) {
       return NextResponse.json(
-        { error: "Email already registered" },
+        { error: "Phone number already registered" },
         { status: 409 }
       );
     }
@@ -69,8 +78,7 @@ export async function POST(req: NextRequest) {
     const hashed = await bcrypt.hash(password, 10);
     const user = await User.create({
       name,
-      email: email.toLowerCase(),
-      phone: phone || "",
+      phone: normalizedPhone,
       password: hashed,
       role,
       createdBy: session.user.id,
@@ -79,7 +87,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       {
         message: `${role} account created`,
-        user: { _id: user._id, name: user.name, email: user.email, role: user.role },
+        user: { _id: user._id, name: user.name, phone: user.phone, role: user.role },
       },
       { status: 201 }
     );

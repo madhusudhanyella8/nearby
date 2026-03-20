@@ -1,25 +1,34 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { connectDB } from "@/lib/mongodb";
+import { normalizePhone, isValidIndianPhone } from "@/lib/phone";
 import User from "@/models/User";
 
 export async function POST(req: NextRequest) {
   try {
-    const { name, email, password } = await req.json();
+    const { name, phone, password } = await req.json();
 
-    if (!name || !email || !password) {
+    if (!name || !phone || !password) {
       return NextResponse.json(
-        { error: "Name, email, and password are required" },
+        { error: "Name, phone, and password are required" },
+        { status: 400 }
+      );
+    }
+
+    const normalizedPhone = normalizePhone(phone);
+    if (!isValidIndianPhone(normalizedPhone)) {
+      return NextResponse.json(
+        { error: "Please enter a valid 10-digit Indian mobile number" },
         { status: 400 }
       );
     }
 
     await connectDB();
 
-    const existing = await User.findOne({ email: email.toLowerCase() });
+    const existing = await User.findOne({ phone: normalizedPhone });
     if (existing) {
       return NextResponse.json(
-        { error: "Email already registered" },
+        { error: "Phone number already registered" },
         { status: 409 }
       );
     }
@@ -27,7 +36,7 @@ export async function POST(req: NextRequest) {
     const hashed = await bcrypt.hash(password, 10);
     const user = await User.create({
       name,
-      email: email.toLowerCase(),
+      phone: normalizedPhone,
       password: hashed,
       role: "user",
     });

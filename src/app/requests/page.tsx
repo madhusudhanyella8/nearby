@@ -110,7 +110,7 @@ export default function RequestsPage() {
               Need to register a new business?
             </p>
             <p className="text-sm text-blue-600">
-              Call our helpline: <strong>+91 99999 00001</strong> or submit a
+              Call our helpline: <strong>9999900001</strong> or submit a
               request below.
             </p>
           </div>
@@ -149,7 +149,7 @@ export default function RequestsPage() {
                   </div>
                   {isReviewer && (
                     <p className="text-sm text-gray-500 mt-1">
-                      From: {req.requestedBy?.name} ({req.requestedBy?.email})
+                      From: {req.requestedBy?.name} ({req.requestedBy?.phone})
                     </p>
                   )}
                 </div>

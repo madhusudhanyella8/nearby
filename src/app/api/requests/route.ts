@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
     }
 
     const requests = await Request.find(filter)
-      .populate("requestedBy", "name email")
+      .populate("requestedBy", "name phone")
       .populate("reviewedBy", "name")
       .sort({ createdAt: -1 });
 

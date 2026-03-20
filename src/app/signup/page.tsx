@@ -7,7 +7,7 @@ import Link from "next/link";
 
 export default function SignupPage() {
   const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -22,7 +22,7 @@ export default function SignupPage() {
       const res = await fetch("/api/auth/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, password }),
+        body: JSON.stringify({ name, phone, password }),
       });
 
       const data = await res.json();
@@ -33,9 +33,9 @@ export default function SignupPage() {
         return;
       }
 
-      // Auto-login after signup
+      // Auto-login after signup (NextAuth "email" field carries our phone)
       const loginRes = await signIn("credentials", {
-        email,
+        email: phone,
         password,
         redirect: false,
       });
@@ -84,15 +84,18 @@ export default function SignupPage() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Email
+              Phone Number
             </label>
             <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              type="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
               required
               className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="you@example.com"
+              placeholder="9876543210"
+              maxLength={10}
+              pattern="[6-9][0-9]{9}"
+              title="Enter 10-digit mobile number"
             />
           </div>
 

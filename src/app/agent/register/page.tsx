@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useGeolocation } from "@/hooks/useGeolocation";
 import type { ICategory } from "@/types";
+import PhotoUploader from "@/components/PhotoUploader";
 
 export default function AgentRegisterPage() {
   const { data: session, status } = useSession();
@@ -12,7 +13,6 @@ export default function AgentRegisterPage() {
   const [categories, setCategories] = useState<ICategory[]>([]);
   const [form, setForm] = useState({
     ownerName: "",
-    ownerEmail: "",
     ownerPhone: "",
     oneTimePassword: "",
     businessName: "",
@@ -28,10 +28,12 @@ export default function AgentRegisterPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState<{
-    email: string;
+    phone: string;
     password: string;
     businessName: string;
+    businessId: string;
   } | null>(null);
+  const [photos, setPhotos] = useState<{ url: string; publicId: string }[]>([]);
   const [useGPS, setUseGPS] = useState(false);
 
   useEffect(() => {
@@ -88,9 +90,10 @@ export default function AgentRegisterPage() {
       if (!res.ok) throw new Error(data.error);
 
       setSuccess({
-        email: data.owner.email,
+        phone: data.owner.phone,
         password: data.temporaryPassword,
         businessName: data.business.name,
+        businessId: data.business._id,
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
@@ -120,9 +123,9 @@ export default function AgentRegisterPage() {
             </h2>
             <div className="space-y-2">
               <div className="flex justify-between items-center bg-gray-50 rounded-lg px-4 py-3">
-                <span className="text-sm text-gray-500">Email</span>
+                <span className="text-sm text-gray-500">Phone</span>
                 <span className="font-mono font-medium text-gray-800">
-                  {success.email}
+                  {success.phone}
                 </span>
               </div>
               <div className="flex justify-between items-center bg-gray-50 rounded-lg px-4 py-3">
@@ -140,12 +143,24 @@ export default function AgentRegisterPage() {
             </p>
           </div>
 
+          {/* Photo Upload Section */}
+          <div className="bg-white rounded-xl border border-gray-200 p-6 mt-6 text-left">
+            <h2 className="font-semibold text-gray-700 mb-3">
+              Add Business Photos (Optional)
+            </h2>
+            <PhotoUploader
+              businessId={success.businessId}
+              photos={photos}
+              onUpdate={setPhotos}
+            />
+          </div>
+
           <button
             onClick={() => {
               setSuccess(null);
+              setPhotos([]);
               setForm({
                 ownerName: "",
-                ownerEmail: "",
                 ownerPhone: "",
                 oneTimePassword: "",
                 businessName: "",
@@ -204,32 +219,21 @@ export default function AgentRegisterPage() {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Owner Email *
-              </label>
-              <input
-                type="email"
-                value={form.ownerEmail}
-                onChange={(e) => updateForm("ownerEmail", e.target.value)}
-                required
-                className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="owner@email.com"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Owner Phone
-              </label>
-              <input
-                type="tel"
-                value={form.ownerPhone}
-                onChange={(e) => updateForm("ownerPhone", e.target.value)}
-                className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="+91 98765 43210"
-              />
-            </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Owner Phone *
+            </label>
+            <input
+              type="tel"
+              value={form.ownerPhone}
+              onChange={(e) => updateForm("ownerPhone", e.target.value)}
+              required
+              className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="9876543210"
+              maxLength={10}
+              pattern="[6-9][0-9]{9}"
+              title="Enter 10-digit mobile number"
+            />
           </div>
 
           <div>
@@ -308,7 +312,10 @@ export default function AgentRegisterPage() {
               onChange={(e) => updateForm("businessPhone", e.target.value)}
               required
               className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="+91 98765 43210"
+              placeholder="9876543210"
+              maxLength={10}
+              pattern="[6-9][0-9]{9}"
+              title="Enter 10-digit mobile number"
             />
           </div>
         </div>

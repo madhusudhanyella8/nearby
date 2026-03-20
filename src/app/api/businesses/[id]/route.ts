@@ -13,7 +13,7 @@ export async function GET(
     const { id } = await params;
     const business = await Business.findById(id)
       .populate("category")
-      .populate("owner", "name email");
+      .populate("owner", "name phone");
 
     if (!business) {
       return NextResponse.json({ error: "Not found" }, { status: 404 });
