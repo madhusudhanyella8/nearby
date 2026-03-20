@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
+import Breadcrumbs from "@/components/Breadcrumbs";
 import type { IRequest } from "@/types";
 
 const STATUS_COLORS: Record<string, string> = {
@@ -18,7 +19,7 @@ export default function RequestsPage() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const isReviewer = session?.user?.role === "agent" || session?.user?.role === "admin";
+  const isReviewer = session?.user?.permissions?.includes("agent_panel");
 
   useEffect(() => {
     if (session) {
@@ -92,6 +93,27 @@ export default function RequestsPage() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
+      <Breadcrumbs
+        items={
+          session.user.permissions?.includes("agent_panel")
+            ? [
+                { label: "Home", href: "/" },
+                { label: "Agent Panel", href: "/agent" },
+                { label: "Requests" },
+              ]
+            : session.user.permissions?.includes("admin_panel")
+            ? [
+                { label: "Home", href: "/" },
+                { label: "Admin Panel", href: "/admin" },
+                { label: "Requests" },
+              ]
+            : [
+                { label: "Home", href: "/" },
+                { label: "Business Panel", href: "/business-panel" },
+                { label: "My Requests" },
+              ]
+        }
+      />
       <h1 className="text-2xl font-bold text-gray-800 mb-2">
         {isReviewer ? "Manage Requests" : "My Requests"}
       </h1>
@@ -102,7 +124,7 @@ export default function RequestsPage() {
       </p>
 
       {/* Helpline info for business owners */}
-      {session.user.role === "business_owner" && (
+      {session.user.permissions?.includes("business_panel") && (
         <div className="bg-blue-50 rounded-xl border border-blue-100 p-4 mb-6 flex items-center gap-3">
           <span className="text-2xl">📞</span>
           <div>

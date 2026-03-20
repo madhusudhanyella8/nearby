@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const filter: any = {};
 
-    if (["agent", "admin"].includes(session.user.role)) {
+    if (session.user.permissions?.includes("agent_panel") || session.user.permissions?.includes("admin_panel")) {
       // Agents and admins see all requests (optionally filtered by status)
       if (statusFilter) filter.status = statusFilter;
     } else {
@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
     await connectDB();
 
     if (type === "new_business") {
-      if (session.user.role !== "business_owner") {
+      if (!session.user.permissions?.includes("business_panel")) {
         return NextResponse.json(
           { error: "Only business owners can request new business registration" },
           { status: 403 }
@@ -84,9 +84,9 @@ export async function POST(req: NextRequest) {
     }
 
     if (type === "role_upgrade") {
-      if (session.user.role !== "user") {
+      if (session.user.permissions?.includes("business_panel")) {
         return NextResponse.json(
-          { error: "Only end users can request a role upgrade" },
+          { error: "You already have business owner access" },
           { status: 403 }
         );
       }

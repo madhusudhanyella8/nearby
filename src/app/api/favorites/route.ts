@@ -32,10 +32,10 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session || session.user.role !== "user") {
+    if (!session) {
       return NextResponse.json(
-        { error: "Only end users can save favorites" },
-        { status: 403 }
+        { error: "Unauthorized" },
+        { status: 401 }
       );
     }
 

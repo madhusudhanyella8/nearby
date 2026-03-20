@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import BusinessCard from "@/components/BusinessCard";
+import Breadcrumbs from "@/components/Breadcrumbs";
 import type { IBusiness } from "@/types";
 
 export default function FavoritesPage() {
@@ -11,7 +12,7 @@ export default function FavoritesPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (session?.user?.role === "user") {
+    if (session) {
       fetch("/api/favorites")
         .then((r) => r.json())
         .then((data) => {
@@ -33,12 +34,12 @@ export default function FavoritesPage() {
     );
   }
 
-  if (!session || session.user.role !== "user") {
+  if (!session) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-12 text-center">
         <span className="text-5xl">🔒</span>
         <h1 className="text-xl font-semibold text-gray-700 mt-4">
-          End Users Only
+          Please login to view favorites
         </h1>
       </div>
     );
@@ -46,6 +47,9 @@ export default function FavoritesPage() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
+      <Breadcrumbs
+        items={[{ label: "Home", href: "/" }, { label: "Favorites" }]}
+      />
       <h1 className="text-2xl font-bold text-gray-800 mb-2">My Favorites</h1>
       <p className="text-gray-500 mb-8">Businesses you&apos;ve saved</p>
 

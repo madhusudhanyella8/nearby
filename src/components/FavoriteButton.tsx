@@ -12,11 +12,10 @@ export default function FavoriteButton({
   const [isFavorite, setIsFavorite] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // Only show for Type4 (end users)
-  const isEndUser = session?.user?.role === "user";
+  const isLoggedIn = !!session;
 
   useEffect(() => {
-    if (!isEndUser) return;
+    if (!isLoggedIn) return;
 
     fetch("/api/favorites")
       .then((r) => r.json())
@@ -30,9 +29,9 @@ export default function FavoriteButton({
         );
       })
       .catch(() => {});
-  }, [businessId, isEndUser]);
+  }, [businessId, isLoggedIn]);
 
-  if (!isEndUser) return null;
+  if (!isLoggedIn) return null;
 
   async function toggle(e: React.MouseEvent) {
     e.preventDefault();

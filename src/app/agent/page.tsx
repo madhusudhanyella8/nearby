@@ -3,18 +3,22 @@
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
+import Breadcrumbs from "@/components/Breadcrumbs";
 import type { IRequest } from "@/types";
 
-export default function AgentDashboard() {
+export default function AgentPanel() {
   const { data: session, status } = useSession();
-  const [requests, setRequests] = useState<IRequest[]>([]);
+  const [pendingCount, setPendingCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (session?.user?.role === "agent") {
+    if (session?.user?.permissions?.includes("agent_panel")) {
       fetch("/api/requests?status=pending")
         .then((r) => r.json())
-        .then((data) => setRequests(data.requests || []))
+        .then((data) => {
+          const requests: IRequest[] = data.requests || [];
+          setPendingCount(requests.length);
+        })
         .catch(() => {})
         .finally(() => setLoading(false));
     } else {
@@ -30,7 +34,7 @@ export default function AgentDashboard() {
     );
   }
 
-  if (!session || session.user.role !== "agent") {
+  if (!session || !session.user.permissions?.includes("agent_panel")) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-12 text-center">
         <span className="text-5xl">🔒</span>
@@ -43,76 +47,45 @@ export default function AgentDashboard() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-800">Agent Dashboard</h1>
-          <p className="text-gray-500">
-            Welcome, {session.user.name}
-          </p>
-        </div>
-        <Link
-          href="/agent/register"
-          className="bg-blue-600 text-white px-5 py-2.5 rounded-lg font-medium hover:bg-blue-700 transition"
-        >
-          + Register Business
-        </Link>
-      </div>
+      <Breadcrumbs
+        items={[{ label: "Home", href: "/" }, { label: "Agent Panel" }]}
+      />
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 gap-4 mb-8">
-        <div className="bg-white rounded-xl border border-gray-100 p-5">
-          <p className="text-sm text-gray-500">Pending Requests</p>
-          <p className="text-3xl font-bold text-orange-600">{requests.length}</p>
-        </div>
+      <h1 className="text-2xl font-bold text-gray-800 mb-2">Agent Panel</h1>
+      <p className="text-gray-500 mb-8">Welcome, {session.user.name}</p>
+
+      <div className="grid sm:grid-cols-2 gap-6">
         <Link
           href="/requests"
-          className="bg-white rounded-xl border border-gray-100 p-5 hover:shadow-md transition"
+          className="bg-white rounded-2xl border border-gray-100 p-8 hover:shadow-md transition group"
         >
-          <p className="text-sm text-gray-500">View All Requests</p>
-          <p className="text-sm text-blue-600 font-medium mt-2">
-            Manage requests &rarr;
+          <div className="text-4xl mb-4">📋</div>
+          <h2 className="text-lg font-semibold text-gray-800 group-hover:text-blue-600">
+            Requests
+          </h2>
+          <p className="text-sm text-gray-500 mt-1">
+            Review business registration and upgrade requests
+          </p>
+          {pendingCount > 0 && (
+            <span className="inline-flex items-center mt-3 px-3 py-1 rounded-full text-xs font-medium bg-orange-50 text-orange-700">
+              {pendingCount} pending
+            </span>
+          )}
+        </Link>
+
+        <Link
+          href="/agent/register"
+          className="bg-white rounded-2xl border border-gray-100 p-8 hover:shadow-md transition group"
+        >
+          <div className="text-4xl mb-4">🏪</div>
+          <h2 className="text-lg font-semibold text-gray-800 group-hover:text-blue-600">
+            Register Business
+          </h2>
+          <p className="text-sm text-gray-500 mt-1">
+            Register a new business and create owner account
           </p>
         </Link>
       </div>
-
-      {/* Recent pending requests */}
-      <h2 className="text-lg font-semibold text-gray-800 mb-4">
-        Recent Pending Requests
-      </h2>
-      {requests.length === 0 ? (
-        <div className="text-center py-12 bg-white rounded-xl border border-gray-100">
-          <span className="text-4xl">✅</span>
-          <p className="text-gray-500 mt-3">No pending requests</p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {requests.slice(0, 5).map((req) => (
-            <Link
-              key={req._id}
-              href="/requests"
-              className="block bg-white rounded-xl border border-gray-100 p-4 hover:shadow-sm transition"
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-50 text-orange-700 mr-2">
-                    {req.type === "new_business"
-                      ? "New Business"
-                      : "Role Upgrade"}
-                  </span>
-                  <span className="text-sm text-gray-700">
-                    {req.type === "new_business"
-                      ? req.businessDetails?.name
-                      : `${req.requestedBy.name} wants to upgrade`}
-                  </span>
-                </div>
-                <span className="text-xs text-gray-400">
-                  {new Date(req.createdAt).toLocaleDateString()}
-                </span>
-              </div>
-            </Link>
-          ))}
-        </div>
-      )}
     </div>
   );
 }

@@ -4,33 +4,20 @@ import Link from "next/link";
 import { useSession, signOut } from "next-auth/react";
 import { useState } from "react";
 
-const ROLE_LINKS: Record<string, { href: string; label: string }[]> = {
-  admin: [
-    { href: "/admin", label: "Admin Panel" },
-    { href: "/admin/businesses", label: "All Businesses" },
-    { href: "/requests", label: "Requests" },
-  ],
-  agent: [
-    { href: "/agent", label: "Dashboard" },
-    { href: "/agent/register", label: "+ Register Business" },
-    { href: "/requests", label: "Requests" },
-  ],
-  business_owner: [
-    { href: "/dashboard", label: "My Businesses" },
-    { href: "/register-business", label: "Request New Business" },
-    { href: "/requests", label: "My Requests" },
-  ],
-  user: [
-    { href: "/favorites", label: "Favorites" },
-  ],
+const PERMISSION_NAV: Record<string, { label: string; href: string }> = {
+  admin_panel: { label: "Admin Panel", href: "/admin" },
+  agent_panel: { label: "Agent Panel", href: "/agent" },
+  business_panel: { label: "Business Panel", href: "/business-panel" },
 };
 
 export default function Navbar() {
   const { data: session } = useSession();
   const [menuOpen, setMenuOpen] = useState(false);
 
-  const role = session?.user?.role || "";
-  const links = ROLE_LINKS[role] || [];
+  const permissions = session?.user?.permissions || [];
+  const links = permissions
+    .map((key) => PERMISSION_NAV[key])
+    .filter(Boolean);
 
   return (
     <nav className="bg-white shadow-sm border-b border-gray-100 sticky top-0 z-50">
@@ -57,6 +44,12 @@ export default function Navbar() {
                     {link.label}
                   </Link>
                 ))}
+                <Link
+                  href="/favorites"
+                  className="text-sm text-gray-700 hover:text-blue-600"
+                >
+                  Favorites
+                </Link>
                 <button
                   onClick={() => signOut()}
                   className="text-sm text-gray-600 hover:text-red-600"
@@ -65,20 +58,12 @@ export default function Navbar() {
                 </button>
               </>
             ) : (
-              <>
-                <Link
-                  href="/login"
-                  className="text-sm text-gray-700 hover:text-blue-600"
-                >
-                  Login
-                </Link>
-                <Link
-                  href="/signup"
-                  className="text-sm bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
-                >
-                  Sign Up
-                </Link>
-              </>
+              <Link
+                href="/login"
+                className="text-sm bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
+              >
+                Login
+              </Link>
             )}
           </div>
 
@@ -130,6 +115,13 @@ export default function Navbar() {
                     {link.label}
                   </Link>
                 ))}
+                <Link
+                  href="/favorites"
+                  className="block px-2 py-1 text-sm text-gray-700 hover:text-blue-600"
+                  onClick={() => setMenuOpen(false)}
+                >
+                  Favorites
+                </Link>
                 <button
                   onClick={() => signOut()}
                   className="block px-2 py-1 text-sm text-red-600"
@@ -138,22 +130,13 @@ export default function Navbar() {
                 </button>
               </>
             ) : (
-              <>
-                <Link
-                  href="/login"
-                  className="block px-2 py-1 text-sm text-gray-700"
-                  onClick={() => setMenuOpen(false)}
-                >
-                  Login
-                </Link>
-                <Link
-                  href="/signup"
-                  className="block px-2 py-1 text-sm text-blue-600 font-medium"
-                  onClick={() => setMenuOpen(false)}
-                >
-                  Sign Up
-                </Link>
-              </>
+              <Link
+                href="/login"
+                className="block px-2 py-1 text-sm text-blue-600 font-medium"
+                onClick={() => setMenuOpen(false)}
+              >
+                Login
+              </Link>
             )}
           </div>
         )}

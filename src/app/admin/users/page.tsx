@@ -2,53 +2,100 @@
 
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
-import type { IUserItem } from "@/types";
+import Breadcrumbs from "@/components/Breadcrumbs";
 
-const ROLE_LABELS: Record<string, string> = {
-  admin: "Admin",
-  agent: "Field Agent",
-  business_owner: "Business Owner",
-  user: "End User",
+interface IPermissionItem {
+  _id: string;
+  key: string;
+  name: string;
+}
+
+interface IUserItem {
+  _id: string;
+  name: string;
+  phone: string;
+  permissions: IPermissionItem[];
+  isActive: boolean;
+  createdBy?: { _id: string; name: string };
+  createdAt: string;
+}
+
+const PERMISSION_LABELS: Record<string, { label: string; color: string }> = {
+  admin_panel: { label: "Admin", color: "bg-purple-50 text-purple-700" },
+  agent_panel: { label: "Field Agent", color: "bg-blue-50 text-blue-700" },
+  business_panel: { label: "Business Owner", color: "bg-green-50 text-green-700" },
 };
 
-const ROLE_COLORS: Record<string, string> = {
-  admin: "bg-purple-50 text-purple-700",
-  agent: "bg-blue-50 text-blue-700",
-  business_owner: "bg-green-50 text-green-700",
-  user: "bg-gray-50 text-gray-700",
-};
+function getUserBadges(permissions: IPermissionItem[]) {
+  if (!permissions || permissions.length === 0) {
+    return [{ label: "End User", color: "bg-gray-50 text-gray-700" }];
+  }
+  return permissions
+    .map((p) => PERMISSION_LABELS[p.key])
+    .filter(Boolean);
+}
+
+type FilterKey = "" | "admin_panel" | "agent_panel" | "business_panel" | "end_user";
 
 export default function AdminUsersPage() {
   const { data: session, status } = useSession();
-  const [users, setUsers] = useState<IUserItem[]>([]);
+  const [allUsers, setAllUsers] = useState<IUserItem[]>([]);
+  const [allPermissions, setAllPermissions] = useState<IPermissionItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [roleFilter, setRoleFilter] = useState("");
+  const [filter, setFilter] = useState<FilterKey>("");
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [createForm, setCreateForm] = useState({
     name: "",
     phone: "",
-    password: "",
-    role: "agent",
+    permissionKey: "agent_panel",
   });
   const [createError, setCreateError] = useState("");
   const [createLoading, setCreateLoading] = useState(false);
+  const [expandedUser, setExpandedUser] = useState<string | null>(null);
+  const [permLoading, setPermLoading] = useState<string | null>(null);
 
   useEffect(() => {
-    if (session?.user?.role === "admin") {
+    if (session?.user?.permissions?.includes("admin_panel")) {
       fetchUsers();
+      fetch("/api/admin/permissions")
+        .then((r) => r.json())
+        .then((data) => setAllPermissions(data.permissions || []))
+        .catch(() => {});
     } else {
       setLoading(false);
     }
-  }, [session, roleFilter]);
+  }, [session]);
 
   async function fetchUsers() {
     setLoading(true);
-    const params = roleFilter ? `?role=${roleFilter}` : "";
-    const res = await fetch(`/api/admin/users${params}`);
+    const res = await fetch("/api/admin/users");
     const data = await res.json();
-    setUsers(data.users || []);
+    setAllUsers(data.users || []);
     setLoading(false);
   }
+
+  function hasPermission(user: IUserItem, key: string) {
+    return user.permissions?.some((p) => p.key === key);
+  }
+
+  function isEndUser(user: IUserItem) {
+    return !user.permissions || user.permissions.length === 0 ||
+      !user.permissions.some((p) => ["admin_panel", "agent_panel", "business_panel"].includes(p.key));
+  }
+
+  const users = (() => {
+    if (!filter) return allUsers;
+    if (filter === "end_user") return allUsers.filter(isEndUser);
+    return allUsers.filter((u) => hasPermission(u, filter));
+  })();
+
+  const filterCounts = {
+    "": allUsers.length,
+    admin_panel: allUsers.filter((u) => hasPermission(u, "admin_panel")).length,
+    agent_panel: allUsers.filter((u) => hasPermission(u, "agent_panel")).length,
+    business_panel: allUsers.filter((u) => hasPermission(u, "business_panel")).length,
+    end_user: allUsers.filter(isEndUser).length,
+  };
 
   async function handleToggleActive(userId: string, currentActive: boolean) {
     const res = await fetch(`/api/admin/users/${userId}`, {
@@ -57,12 +104,50 @@ export default function AdminUsersPage() {
       body: JSON.stringify({ isActive: !currentActive }),
     });
     if (res.ok) {
-      setUsers((prev) =>
+      setAllUsers((prev) =>
         prev.map((u) =>
           u._id === userId ? { ...u, isActive: !currentActive } : u
         )
       );
     }
+  }
+
+  async function handleDeleteUser(userId: string) {
+    if (!confirm("Are you sure you want to permanently delete this user?")) return;
+    const res = await fetch(`/api/admin/users/${userId}`, {
+      method: "DELETE",
+    });
+    if (res.ok) {
+      setAllUsers((prev) => prev.filter((u) => u._id !== userId));
+    }
+  }
+
+  async function handleTogglePermission(
+    userId: string,
+    permId: string,
+    currentPerms: IPermissionItem[]
+  ) {
+    setPermLoading(userId);
+    const currentIds = currentPerms.map((p) => p._id);
+    const newIds = currentIds.includes(permId)
+      ? currentIds.filter((id) => id !== permId)
+      : [...currentIds, permId];
+
+    const res = await fetch(`/api/admin/users/${userId}/permissions`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ permissionIds: newIds }),
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      setAllUsers((prev) =>
+        prev.map((u) =>
+          u._id === userId ? { ...u, permissions: data.permissions } : u
+        )
+      );
+    }
+    setPermLoading(null);
   }
 
   async function handleCreate(e: React.FormEvent) {
@@ -85,7 +170,7 @@ export default function AdminUsersPage() {
     }
 
     setShowCreateForm(false);
-    setCreateForm({ name: "", phone: "", password: "", role: "agent" });
+    setCreateForm({ name: "", phone: "", permissionKey: "agent_panel" });
     fetchUsers();
   }
 
@@ -97,7 +182,7 @@ export default function AdminUsersPage() {
     );
   }
 
-  if (!session || session.user.role !== "admin") {
+  if (!session || !session.user.permissions?.includes("admin_panel")) {
     return (
       <div className="max-w-5xl mx-auto px-4 py-12 text-center">
         <span className="text-5xl">🔒</span>
@@ -108,8 +193,24 @@ export default function AdminUsersPage() {
     );
   }
 
+  const FILTER_TABS: { key: FilterKey; label: string }[] = [
+    { key: "", label: "All" },
+    { key: "admin_panel", label: "Admin" },
+    { key: "agent_panel", label: "Field Agent" },
+    { key: "business_panel", label: "Business Owner" },
+    { key: "end_user", label: "End User" },
+  ];
+
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
+      <Breadcrumbs
+        items={[
+          { label: "Home", href: "/" },
+          { label: "Admin Panel", href: "/admin" },
+          { label: "User Management" },
+        ]}
+      />
+
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-gray-800">User Management</h1>
         <button
@@ -132,7 +233,7 @@ export default function AdminUsersPage() {
             </div>
           )}
           <form onSubmit={handleCreate} className="space-y-3">
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 gap-3">
               <input
                 type="text"
                 value={createForm.name}
@@ -156,27 +257,17 @@ export default function AdminUsersPage() {
                 title="Enter 10-digit mobile number"
                 className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
-              <input
-                type="password"
-                value={createForm.password}
-                onChange={(e) =>
-                  setCreateForm((f) => ({ ...f, password: e.target.value }))
-                }
-                required
-                placeholder="Password"
-                className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
             </div>
             <div className="flex items-center gap-3">
               <select
-                value={createForm.role}
+                value={createForm.permissionKey}
                 onChange={(e) =>
-                  setCreateForm((f) => ({ ...f, role: e.target.value }))
+                  setCreateForm((f) => ({ ...f, permissionKey: e.target.value }))
                 }
                 className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
-                <option value="agent">Field Agent</option>
-                <option value="admin">Admin</option>
+                <option value="agent_panel">Field Agent</option>
+                <option value="admin_panel">Admin</option>
               </select>
               <button
                 type="submit"
@@ -186,23 +277,26 @@ export default function AdminUsersPage() {
                 {createLoading ? "Creating..." : "Create"}
               </button>
             </div>
+            <p className="text-xs text-gray-400">
+              The user will login via OTP on their phone number.
+            </p>
           </form>
         </div>
       )}
 
-      {/* Role Filter */}
-      <div className="flex gap-2 mb-6">
-        {["", "admin", "agent", "business_owner", "user"].map((r) => (
+      {/* Filter Tabs */}
+      <div className="flex flex-wrap gap-2 mb-6">
+        {FILTER_TABS.map((tab) => (
           <button
-            key={r}
-            onClick={() => setRoleFilter(r)}
+            key={tab.key}
+            onClick={() => setFilter(tab.key)}
             className={`px-3 py-1.5 rounded-full text-xs font-medium transition ${
-              roleFilter === r
+              filter === tab.key
                 ? "bg-blue-600 text-white"
                 : "bg-gray-100 text-gray-600 hover:bg-gray-200"
             }`}
           >
-            {r ? ROLE_LABELS[r] : "All"}
+            {tab.label} ({filterCounts[tab.key]})
           </button>
         ))}
       </div>
@@ -210,47 +304,116 @@ export default function AdminUsersPage() {
       {/* User List */}
       {loading ? (
         <div className="text-center py-12 text-gray-400">Loading users...</div>
+      ) : users.length === 0 ? (
+        <div className="text-center py-16 bg-white rounded-xl border border-gray-100">
+          <span className="text-5xl">👥</span>
+          <h3 className="text-lg font-medium text-gray-700 mt-4">
+            No users found
+          </h3>
+        </div>
       ) : (
         <div className="space-y-2">
           {users.map((user) => (
             <div
               key={user._id}
-              className={`bg-white rounded-xl border border-gray-100 p-4 flex items-center justify-between ${
+              className={`bg-white rounded-xl border border-gray-100 ${
                 !user.isActive ? "opacity-60" : ""
               }`}
             >
-              <div className="flex-1 min-w-0">
+              <div className="p-4 flex items-center justify-between">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <h3 className="font-medium text-gray-800">{user.name}</h3>
+                    {getUserBadges(user.permissions).map((badge, i) => (
+                      <span
+                        key={i}
+                        className={`px-2 py-0.5 rounded-full text-xs font-medium ${badge.color}`}
+                      >
+                        {badge.label}
+                      </span>
+                    ))}
+                    {!user.isActive && (
+                      <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-red-50 text-red-600">
+                        Inactive
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-sm text-gray-500">{user.phone}</p>
+                </div>
                 <div className="flex items-center gap-2">
-                  <h3 className="font-medium text-gray-800">{user.name}</h3>
-                  <span
-                    className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                      ROLE_COLORS[user.role] || "bg-gray-50 text-gray-700"
-                    }`}
+                  <button
+                    onClick={() =>
+                      setExpandedUser(
+                        expandedUser === user._id ? null : user._id
+                      )
+                    }
+                    className="px-3 py-1.5 text-xs rounded-lg border text-gray-600 border-gray-200 hover:bg-gray-50"
                   >
-                    {ROLE_LABELS[user.role] || user.role}
-                  </span>
-                  {!user.isActive && (
-                    <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-red-50 text-red-600">
-                      Inactive
-                    </span>
+                    {expandedUser === user._id
+                      ? "Hide Permissions"
+                      : "Permissions"}
+                  </button>
+                  {user._id !== session.user.id && (
+                    <>
+                      <button
+                        onClick={() =>
+                          handleToggleActive(user._id, user.isActive)
+                        }
+                        className={`px-3 py-1.5 text-xs rounded-lg border ${
+                          user.isActive
+                            ? "text-red-600 border-red-200 hover:bg-red-50"
+                            : "text-green-600 border-green-200 hover:bg-green-50"
+                        }`}
+                      >
+                        {user.isActive ? "Deactivate" : "Activate"}
+                      </button>
+                      <button
+                        onClick={() => handleDeleteUser(user._id)}
+                        className="px-3 py-1.5 text-xs rounded-lg border text-red-600 border-red-200 hover:bg-red-50"
+                      >
+                        Delete
+                      </button>
+                    </>
                   )}
                 </div>
-                <p className="text-sm text-gray-500">{user.phone}</p>
               </div>
-              <div className="flex items-center gap-2">
-                {user._id !== session.user.id && (
-                  <button
-                    onClick={() => handleToggleActive(user._id, user.isActive)}
-                    className={`px-3 py-1.5 text-xs rounded-lg border ${
-                      user.isActive
-                        ? "text-red-600 border-red-200 hover:bg-red-50"
-                        : "text-green-600 border-green-200 hover:bg-green-50"
-                    }`}
-                  >
-                    {user.isActive ? "Deactivate" : "Activate"}
-                  </button>
-                )}
-              </div>
+
+              {/* Permissions panel */}
+              {expandedUser === user._id && (
+                <div className="px-4 pb-4 pt-2 border-t border-gray-100">
+                  <p className="text-xs text-gray-500 mb-2">
+                    Toggle permissions for this user:
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {allPermissions.map((perm) => {
+                      const hasPerm = user.permissions?.some(
+                        (p) => p._id === perm._id
+                      );
+                      return (
+                        <button
+                          key={perm._id}
+                          onClick={() =>
+                            handleTogglePermission(
+                              user._id,
+                              perm._id,
+                              user.permissions || []
+                            )
+                          }
+                          disabled={permLoading === user._id}
+                          className={`px-3 py-1.5 text-xs rounded-lg border transition disabled:opacity-50 ${
+                            hasPerm
+                              ? "bg-blue-50 text-blue-700 border-blue-200"
+                              : "bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100"
+                          }`}
+                        >
+                          {hasPerm ? "✓ " : ""}
+                          {perm.name}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           ))}
         </div>

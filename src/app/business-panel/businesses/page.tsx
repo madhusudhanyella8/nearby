@@ -3,15 +3,17 @@
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
+import Breadcrumbs from "@/components/Breadcrumbs";
 import type { IBusiness } from "@/types";
 
-export default function DashboardPage() {
+export default function MyBusinessesPage() {
   const { data: session, status } = useSession();
   const [businesses, setBusinesses] = useState<IBusiness[]>([]);
   const [loading, setLoading] = useState(true);
+  const [confirmDeactivate, setConfirmDeactivate] = useState<string | null>(null);
 
   useEffect(() => {
-    if (session?.user?.role === "business_owner") {
+    if (session?.user?.permissions?.includes("business_panel")) {
       fetch("/api/businesses?owner=me")
         .then((r) => r.json())
         .then((data) => setBusinesses(data.businesses || []))
@@ -30,7 +32,7 @@ export default function DashboardPage() {
     );
   }
 
-  if (!session || session.user.role !== "business_owner") {
+  if (!session || !session.user.permissions?.includes("business_panel")) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-12 text-center">
         <span className="text-5xl">🔒</span>
@@ -42,20 +44,29 @@ export default function DashboardPage() {
   }
 
   async function handleDeactivate(id: string) {
-    if (!confirm("Are you sure you want to deactivate this listing?")) return;
-
     try {
       const res = await fetch(`/api/businesses/${id}`, { method: "DELETE" });
       if (res.ok) {
-        setBusinesses((prev) => prev.filter((b) => b._id !== id));
+        setBusinesses((prev) =>
+          prev.map((b) => (b._id === id ? { ...b, isActive: false } : b))
+        );
       }
     } catch {
-      alert("Failed to deactivate");
+      // silently fail
     }
+    setConfirmDeactivate(null);
   }
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
+      <Breadcrumbs
+        items={[
+          { label: "Home", href: "/" },
+          { label: "Business Panel", href: "/business-panel" },
+          { label: "My Businesses" },
+        ]}
+      />
+
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">My Businesses</h1>
@@ -90,12 +101,19 @@ export default function DashboardPage() {
           {businesses.map((biz) => (
             <div
               key={biz._id}
-              className="bg-white rounded-xl border border-gray-100 p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+              className={`bg-white rounded-xl border border-gray-100 p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4${!biz.isActive ? " opacity-60" : ""}`}
             >
               <div className="flex-1 min-w-0">
-                <h3 className="text-lg font-semibold text-gray-800">
-                  {biz.name}
-                </h3>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-lg font-semibold text-gray-800">
+                    {biz.name}
+                  </h3>
+                  {!biz.isActive && (
+                    <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-red-50 text-red-600">
+                      Inactive
+                    </span>
+                  )}
+                </div>
                 <div className="flex flex-wrap items-center gap-2 mt-1">
                   <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700">
                     {biz.category?.icon} {biz.category?.name}
@@ -109,22 +127,41 @@ export default function DashboardPage() {
               <div className="flex items-center gap-2 shrink-0">
                 <Link
                   href={`/business/${biz._id}`}
-                  className="px-4 py-2 text-sm border border-gray-200 rounded-lg hover:bg-gray-50"
+                  className="px-3 py-1.5 text-xs font-medium rounded-lg border text-gray-600 border-gray-200 hover:bg-gray-50 transition"
                 >
                   View
                 </Link>
                 <Link
-                  href={`/dashboard/edit/${biz._id}`}
-                  className="px-4 py-2 text-sm text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50"
+                  href={`/business-panel/businesses/edit/${biz._id}`}
+                  className="px-3 py-1.5 text-xs font-medium rounded-lg border text-blue-600 border-blue-200 hover:bg-blue-50 transition"
                 >
                   Edit
                 </Link>
-                <button
-                  onClick={() => handleDeactivate(biz._id)}
-                  className="px-4 py-2 text-sm text-red-600 border border-red-200 rounded-lg hover:bg-red-50"
-                >
-                  Deactivate
-                </button>
+                {confirmDeactivate === biz._id ? (
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs text-gray-500">Sure?</span>
+                    <button
+                      onClick={() => handleDeactivate(biz._id)}
+                      className="px-3 py-1.5 text-xs font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 transition"
+                    >
+                      Yes
+                    </button>
+                    <button
+                      onClick={() => setConfirmDeactivate(null)}
+                      className="px-3 py-1.5 text-xs font-medium rounded-lg border text-gray-600 border-gray-200 hover:bg-gray-50 transition"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setConfirmDeactivate(biz._id)}
+                    disabled={!biz.isActive}
+                    className="px-3 py-1.5 text-xs font-medium rounded-lg border text-red-600 border-red-200 hover:bg-red-50 transition disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    {biz.isActive ? "Deactivate" : "Inactive"}
+                  </button>
+                )}
               </div>
             </div>
           ))}

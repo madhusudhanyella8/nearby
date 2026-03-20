@@ -1,24 +1,15 @@
-export const ROLES = {
-  ADMIN: "admin",
-  AGENT: "agent",
-  BUSINESS_OWNER: "business_owner",
-  USER: "user",
+// Permission key constants
+export const PERMISSIONS = {
+  ADMIN_PANEL: "admin_panel",
+  AGENT_PANEL: "agent_panel",
+  BUSINESS_PANEL: "business_panel",
 } as const;
 
-export type UserRole = (typeof ROLES)[keyof typeof ROLES];
+export type PermissionKey = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];
 
-export function isAdmin(role: string) {
-  return role === ROLES.ADMIN;
-}
-export function isAgent(role: string) {
-  return role === ROLES.AGENT;
-}
-export function isBusinessOwner(role: string) {
-  return role === ROLES.BUSINESS_OWNER;
-}
-export function isEndUser(role: string) {
-  return role === ROLES.USER;
-}
-export function isAgentOrAdmin(role: string) {
-  return role === ROLES.AGENT || role === ROLES.ADMIN;
-}
+// Maps a permission key to a human-readable label and badge color
+export const PERMISSION_LABELS: Record<string, { label: string; color: string }> = {
+  admin_panel: { label: "Admin", color: "bg-purple-50 text-purple-700" },
+  agent_panel: { label: "Field Agent", color: "bg-blue-50 text-blue-700" },
+  business_panel: { label: "Business Owner", color: "bg-green-50 text-green-700" },
+};

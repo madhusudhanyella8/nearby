@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import { useGeolocation } from "@/hooks/useGeolocation";
 import type { ICategory } from "@/types";
 import PhotoUploader from "@/components/PhotoUploader";
+import Breadcrumbs from "@/components/Breadcrumbs";
 
 export default function AgentRegisterPage() {
   const { data: session, status } = useSession();
@@ -14,7 +15,6 @@ export default function AgentRegisterPage() {
   const [form, setForm] = useState({
     ownerName: "",
     ownerPhone: "",
-    oneTimePassword: "",
     businessName: "",
     businessDescription: "",
     businessCategory: "",
@@ -29,11 +29,11 @@ export default function AgentRegisterPage() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState<{
     phone: string;
-    password: string;
     businessName: string;
     businessId: string;
   } | null>(null);
   const [photos, setPhotos] = useState<{ url: string; publicId: string }[]>([]);
+  const [pendingImages, setPendingImages] = useState<{ dataUri: string; mimeType: string; preview: string }[]>([]);
   const [useGPS, setUseGPS] = useState(false);
 
   useEffect(() => {
@@ -63,7 +63,7 @@ export default function AgentRegisterPage() {
     );
   }
 
-  if (!session || session.user.role !== "agent") {
+  if (!session || !session.user.permissions?.includes("agent_panel")) {
     return (
       <div className="max-w-2xl mx-auto px-4 py-12 text-center">
         <span className="text-5xl">🔒</span>
@@ -89,9 +89,31 @@ export default function AgentRegisterPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
 
+      // Upload pending images to the newly created business
+      if (pendingImages.length > 0) {
+        try {
+          const uploadRes = await fetch(`/api/businesses/${data.business._id}/photos`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              images: pendingImages.map((img) => ({
+                dataUri: img.dataUri,
+                mimeType: img.mimeType,
+              })),
+            }),
+          });
+          if (uploadRes.ok) {
+            const uploadData = await uploadRes.json();
+            setPhotos(uploadData.photos || []);
+          }
+        } catch {
+          // Photos can still be added from the success screen
+        }
+        setPendingImages([]);
+      }
+
       setSuccess({
         phone: data.owner.phone,
-        password: data.temporaryPassword,
         businessName: data.business.name,
         businessId: data.business._id,
       });
@@ -108,6 +130,13 @@ export default function AgentRegisterPage() {
   if (success) {
     return (
       <div className="max-w-2xl mx-auto px-4 py-8">
+        <Breadcrumbs
+          items={[
+            { label: "Home", href: "/" },
+            { label: "Agent Panel", href: "/agent" },
+            { label: "Registration Complete" },
+          ]}
+        />
         <div className="bg-green-50 rounded-2xl border border-green-200 p-8 text-center">
           <span className="text-5xl">✅</span>
           <h1 className="text-2xl font-bold text-gray-800 mt-4">
@@ -119,50 +148,47 @@ export default function AgentRegisterPage() {
 
           <div className="bg-white rounded-xl border border-gray-200 p-6 mt-6 text-left">
             <h2 className="font-semibold text-gray-700 mb-3">
-              Credentials to share with business owner:
+              Owner Account Created
             </h2>
-            <div className="space-y-2">
-              <div className="flex justify-between items-center bg-gray-50 rounded-lg px-4 py-3">
-                <span className="text-sm text-gray-500">Phone</span>
-                <span className="font-mono font-medium text-gray-800">
-                  {success.phone}
-                </span>
-              </div>
-              <div className="flex justify-between items-center bg-gray-50 rounded-lg px-4 py-3">
-                <span className="text-sm text-gray-500">
-                  One-Time Password
-                </span>
-                <span className="font-mono font-medium text-gray-800">
-                  {success.password}
-                </span>
-              </div>
+            <div className="bg-gray-50 rounded-lg px-4 py-3">
+              <span className="text-sm text-gray-500">Phone</span>
+              <span className="font-mono font-medium text-gray-800 ml-4">
+                {success.phone}
+              </span>
             </div>
             <p className="text-xs text-gray-400 mt-3">
-              The business owner will be asked to change this password on their
-              first login.
+              The business owner can login using OTP on this phone number.
             </p>
           </div>
 
-          {/* Photo Upload Section */}
-          <div className="bg-white rounded-xl border border-gray-200 p-6 mt-6 text-left">
-            <h2 className="font-semibold text-gray-700 mb-3">
-              Add Business Photos (Optional)
-            </h2>
-            <PhotoUploader
-              businessId={success.businessId}
-              photos={photos}
-              onUpdate={setPhotos}
-            />
-          </div>
+          {photos.length > 0 && (
+            <div className="bg-white rounded-xl border border-gray-200 p-6 mt-6 text-left">
+              <h2 className="font-semibold text-gray-700 mb-3">
+                Uploaded Photos ({photos.length})
+              </h2>
+              <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
+                {photos.map((photo) => (
+                  <div key={photo.publicId} className="aspect-square relative">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={photo.url}
+                      alt="Business photo"
+                      className="object-cover rounded-lg w-full h-full"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           <button
             onClick={() => {
               setSuccess(null);
               setPhotos([]);
+              setPendingImages([]);
               setForm({
                 ownerName: "",
                 ownerPhone: "",
-                oneTimePassword: "",
                 businessName: "",
                 businessDescription: "",
                 businessCategory: "",
@@ -185,6 +211,14 @@ export default function AgentRegisterPage() {
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-8">
+      <Breadcrumbs
+        items={[
+          { label: "Home", href: "/" },
+          { label: "Agent Panel", href: "/agent" },
+          { label: "Register Business" },
+        ]}
+      />
+
       <h1 className="text-2xl font-bold text-gray-800 mb-2">
         Register New Business
       </h1>
@@ -234,19 +268,9 @@ export default function AgentRegisterPage() {
               pattern="[6-9][0-9]{9}"
               title="Enter 10-digit mobile number"
             />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              One-Time Password (leave blank to auto-generate)
-            </label>
-            <input
-              type="text"
-              value={form.oneTimePassword}
-              onChange={(e) => updateForm("oneTimePassword", e.target.value)}
-              className="w-full border border-gray-200 rounded-lg px-4 py-2.5 text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Auto-generated if empty"
-            />
+            <p className="text-xs text-gray-400 mt-1">
+              Owner will login via OTP on this number
+            </p>
           </div>
         </div>
 
@@ -431,6 +455,72 @@ export default function AgentRegisterPage() {
               </div>
             )}
           </div>
+        </div>
+
+        {/* Photos Section */}
+        <div className="bg-white rounded-xl border border-gray-100 p-6">
+          <h2 className="font-semibold text-gray-700 mb-3">
+            Business Photos (Optional)
+          </h2>
+          <p className="text-xs text-gray-400 mb-3">
+            Add up to 5 photos. They will be uploaded after the business is created.
+          </p>
+
+          <div className="grid grid-cols-3 sm:grid-cols-5 gap-3 mb-3">
+            {pendingImages.map((img, idx) => (
+              <div key={idx} className="relative group aspect-square">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={img.preview}
+                  alt={`Photo ${idx + 1}`}
+                  className="object-cover rounded-lg w-full h-full"
+                />
+                <button
+                  type="button"
+                  onClick={() =>
+                    setPendingImages((prev) => prev.filter((_, i) => i !== idx))
+                  }
+                  className="absolute top-1 right-1 bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition"
+                >
+                  X
+                </button>
+              </div>
+            ))}
+
+            {pendingImages.length < 5 && (
+              <label className="aspect-square border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center text-gray-400 hover:border-blue-400 hover:text-blue-500 transition cursor-pointer">
+                <span className="text-2xl">+</span>
+                <span className="text-xs">Add Photo</span>
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => {
+                    if (!e.target.files) return;
+                    const remaining = 5 - pendingImages.length;
+                    const files = Array.from(e.target.files).slice(0, remaining);
+                    files.forEach((file) => {
+                      if (!file.type.startsWith("image/") || file.size > 3 * 1024 * 1024) return;
+                      const reader = new FileReader();
+                      reader.onload = () => {
+                        const dataUri = reader.result as string;
+                        setPendingImages((prev) => [
+                          ...prev,
+                          { dataUri, mimeType: file.type, preview: dataUri },
+                        ]);
+                      };
+                      reader.readAsDataURL(file);
+                    });
+                    e.target.value = "";
+                  }}
+                />
+              </label>
+            )}
+          </div>
+          <p className="text-xs text-gray-400">
+            Max 5 photos. JPEG, PNG, or WebP. Up to 3MB each.
+          </p>
         </div>
 
         <button

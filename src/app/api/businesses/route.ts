@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
     const all = searchParams.get("all");
     if (all === "true") {
       const session = await getServerSession(authOptions);
-      if (session?.user?.role === "admin") {
+      if (session?.user?.permissions?.includes("admin_panel")) {
         delete filter.isActive;
       }
     }
@@ -83,7 +83,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session || !["agent", "admin"].includes(session.user.role)) {
+    if (!session || !(session.user.permissions?.includes("agent_panel") || session.user.permissions?.includes("admin_panel"))) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

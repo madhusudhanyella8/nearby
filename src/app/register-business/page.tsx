@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import Breadcrumbs from "@/components/Breadcrumbs";
 import type { ICategory } from "@/types";
 
 export default function RequestBusinessPage() {
@@ -40,7 +41,7 @@ export default function RequestBusinessPage() {
     );
   }
 
-  if (!session || session.user.role !== "business_owner") {
+  if (!session || !session.user.permissions?.includes("business_panel")) {
     return (
       <div className="max-w-2xl mx-auto px-4 py-12 text-center">
         <span className="text-5xl">🔒</span>
@@ -103,10 +104,10 @@ export default function RequestBusinessPage() {
               View My Requests
             </button>
             <button
-              onClick={() => router.push("/dashboard")}
+              onClick={() => router.push("/business-panel")}
               className="border border-gray-200 text-gray-700 px-6 py-2.5 rounded-lg font-medium hover:bg-gray-50"
             >
-              Go to Dashboard
+              Go to Business Panel
             </button>
           </div>
         </div>
@@ -116,6 +117,13 @@ export default function RequestBusinessPage() {
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-8">
+      <Breadcrumbs
+        items={[
+          { label: "Home", href: "/" },
+          { label: "Business Panel", href: "/business-panel" },
+          { label: "Request New Business" },
+        ]}
+      />
       <h1 className="text-2xl font-bold text-gray-800 mb-2">
         Request New Business Registration
       </h1>

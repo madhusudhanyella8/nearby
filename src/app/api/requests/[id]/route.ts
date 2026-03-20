@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { connectDB } from "@/lib/mongodb";
 import Request from "@/models/Request";
 import User from "@/models/User";
+import Permission from "@/models/Permission";
 
 export async function PUT(
   req: NextRequest,
@@ -11,7 +12,7 @@ export async function PUT(
 ) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session || !["agent", "admin"].includes(session.user.role)) {
+    if (!session || !session.user.permissions?.includes("agent_panel")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -50,12 +51,20 @@ export async function PUT(
     request.reviewedBy = session.user.id as unknown as typeof request.reviewedBy;
     request.reviewNote = reviewNote.trim();
 
-    // Handle role_upgrade approval
+    // Handle role_upgrade approval: grant business_panel permission
     if (status === "approved" && request.type === "role_upgrade") {
-      const user = await User.findById(request.requestedBy);
-      if (user && user.role === "user") {
-        user.role = "business_owner";
-        await user.save();
+      const user = await User.findById(request.requestedBy).populate("permissions");
+      if (user) {
+        const hasBizPanel = user.permissions.some(
+          (p: { key: string }) => p.key === "business_panel"
+        );
+        if (!hasBizPanel) {
+          const bizPerm = await Permission.findOne({ key: "business_panel" });
+          if (bizPerm) {
+            user.permissions.push(bizPerm._id);
+            await user.save();
+          }
+        }
       }
     }
 

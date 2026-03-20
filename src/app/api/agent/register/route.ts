@@ -1,26 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import bcrypt from "bcryptjs";
 import { authOptions } from "@/lib/auth";
 import { connectDB } from "@/lib/mongodb";
 import { normalizePhone, isValidIndianPhone } from "@/lib/phone";
 import User from "@/models/User";
 import Business from "@/models/Business";
-
-function generatePassword(length = 8): string {
-  const chars =
-    "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
-  let pass = "";
-  for (let i = 0; i < length; i++) {
-    pass += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return pass;
-}
+import Permission from "@/models/Permission";
 
 export async function POST(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session || session.user.role !== "agent") {
+    if (!session || !session.user.permissions?.includes("agent_panel")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -28,7 +18,6 @@ export async function POST(req: NextRequest) {
     const {
       ownerName,
       ownerPhone,
-      oneTimePassword,
       businessName,
       businessDescription,
       businessCategory,
@@ -59,7 +48,10 @@ export async function POST(req: NextRequest) {
     const normalizedOwnerPhone = normalizePhone(ownerPhone);
     if (!isValidIndianPhone(normalizedOwnerPhone)) {
       return NextResponse.json(
-        { error: "Please enter a valid 10-digit Indian mobile number for the owner" },
+        {
+          error:
+            "Please enter a valid 10-digit Indian mobile number for the owner",
+        },
         { status: 400 }
       );
     }
@@ -68,37 +60,43 @@ export async function POST(req: NextRequest) {
 
     await connectDB();
 
-    const tempPassword = oneTimePassword || generatePassword();
-    const hashedPassword = await bcrypt.hash(tempPassword, 10);
+    const bizPerm = await Permission.findOne({ key: "business_panel" });
 
     // Check if owner phone already exists
-    let owner = await User.findOne({ phone: normalizedOwnerPhone });
+    let owner = await User.findOne({ phone: normalizedOwnerPhone }).populate("permissions");
 
     if (owner) {
-      if (owner.role === "business_owner") {
+      const ownerPermKeys = owner.permissions.map((p: { key: string }) => p.key);
+      const hasBusinessPanel = ownerPermKeys.includes("business_panel");
+      const hasAdminOrAgent = ownerPermKeys.includes("admin_panel") || ownerPermKeys.includes("agent_panel");
+
+      if (hasBusinessPanel) {
         // Already a business owner — just create the business under them
-      } else if (owner.role === "user") {
-        // Upgrade Type4 to Type3
-        owner.role = "business_owner";
-        owner.password = hashedPassword;
-        owner.mustChangePassword = true;
-        owner.createdBy = session.user.id as unknown as typeof owner.createdBy;
-        owner.name = ownerName;
-        await owner.save();
-      } else {
+      } else if (hasAdminOrAgent) {
         return NextResponse.json(
-          { error: "This phone number belongs to an admin or agent account" },
+          {
+            error: "This phone number belongs to an admin or agent account",
+          },
           { status: 409 }
         );
+      } else {
+        // End user — upgrade by adding business_panel permission
+        owner.createdBy =
+          session.user.id as unknown as typeof owner.createdBy;
+        owner.name = ownerName;
+
+        if (bizPerm && !owner.permissions.some((p: { _id: { toString(): string } }) => p._id.toString() === bizPerm._id.toString())) {
+          owner.permissions.push(bizPerm._id);
+        }
+
+        await owner.save();
       }
     } else {
-      // Create new Type3 user
+      // Create new business owner user
       owner = await User.create({
         name: ownerName,
         phone: normalizedOwnerPhone,
-        password: hashedPassword,
-        role: "business_owner",
-        mustChangePassword: true,
+        permissions: bizPerm ? [bizPerm._id] : [],
         createdBy: session.user.id,
       });
     }
@@ -127,7 +125,6 @@ export async function POST(req: NextRequest) {
         message: "Business and owner account created successfully",
         business: { _id: business._id, name: business.name },
         owner: { _id: owner._id, phone: owner.phone },
-        temporaryPassword: tempPassword,
       },
       { status: 201 }
     );

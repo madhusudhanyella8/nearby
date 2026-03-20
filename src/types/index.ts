@@ -1,19 +1,16 @@
 import { DefaultSession } from "next-auth";
-import type { UserRole } from "@/lib/roles";
 
 declare module "next-auth" {
   interface Session {
     user: {
       id: string;
-      role: UserRole;
-      mustChangePassword: boolean;
+      permissions: string[];
       phone?: string;
     } & DefaultSession["user"];
   }
 
   interface User {
-    role: UserRole;
-    mustChangePassword: boolean;
+    permissions: string[];
     phone?: string;
   }
 }
@@ -21,8 +18,7 @@ declare module "next-auth" {
 declare module "next-auth/jwt" {
   interface JWT {
     id: string;
-    role: UserRole;
-    mustChangePassword: boolean;
+    permissions: string[];
     phone?: string;
   }
 }
@@ -89,8 +85,7 @@ export interface IUserItem {
   _id: string;
   name: string;
   phone: string;
-  role: string;
-  mustChangePassword: boolean;
+  permissions: string[];
   isActive: boolean;
   createdBy?: { _id: string; name: string };
   createdAt: string;

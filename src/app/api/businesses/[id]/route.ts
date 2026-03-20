@@ -46,7 +46,7 @@ export async function PUT(
     }
 
     const isOwner = business.owner.toString() === session.user.id;
-    const isAgentOrAdmin = ["agent", "admin"].includes(session.user.role);
+    const isAgentOrAdmin = session.user.permissions?.includes("agent_panel") || session.user.permissions?.includes("admin_panel");
     if (!isOwner && !isAgentOrAdmin) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
@@ -96,7 +96,7 @@ export async function DELETE(
     }
 
     const isOwner = business.owner.toString() === session.user.id;
-    const isAgentOrAdmin = ["agent", "admin"].includes(session.user.role);
+    const isAgentOrAdmin = session.user.permissions?.includes("agent_panel") || session.user.permissions?.includes("admin_panel");
     if (!isOwner && !isAgentOrAdmin) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }

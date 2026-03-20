@@ -3,9 +3,7 @@ import mongoose, { Schema, Document, Types } from "mongoose";
 export interface IUser extends Document {
   name: string;
   phone: string;
-  password: string;
-  role: "admin" | "agent" | "business_owner" | "user";
-  mustChangePassword: boolean;
+  permissions: Types.ObjectId[];
   createdBy?: Types.ObjectId;
   isActive: boolean;
   createdAt: Date;
@@ -23,13 +21,7 @@ const UserSchema = new Schema<IUser>(
         message: "Phone must be a valid 10-digit Indian mobile number",
       },
     },
-    password: { type: String, required: true },
-    role: {
-      type: String,
-      enum: ["admin", "agent", "business_owner", "user"],
-      default: "user",
-    },
-    mustChangePassword: { type: Boolean, default: false },
+    permissions: [{ type: Schema.Types.ObjectId, ref: "Permission" }],
     createdBy: { type: Schema.Types.ObjectId, ref: "User", default: null },
     isActive: { type: Boolean, default: true },
   },

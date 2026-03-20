@@ -7,7 +7,7 @@ import Business from "@/models/Business";
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
-    if (!session || session.user.role !== "admin") {
+    if (!session || !session.user.permissions?.includes("admin_panel")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -19,9 +19,41 @@ export async function GET() {
       .sort({ createdAt: -1 });
 
     return NextResponse.json({ businesses });
-  } catch {
+  } catch (err) {
+    console.error("Admin businesses GET error:", err);
     return NextResponse.json(
       { error: "Failed to fetch businesses" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session || !session.user.permissions?.includes("admin_panel")) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { businessId } = await req.json();
+    if (!businessId) {
+      return NextResponse.json(
+        { error: "businessId is required" },
+        { status: 400 }
+      );
+    }
+
+    await connectDB();
+
+    const business = await Business.findByIdAndDelete(businessId);
+    if (!business) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+
+    return NextResponse.json({ message: "Business deleted permanently" });
+  } catch {
+    return NextResponse.json(
+      { error: "Failed to delete business" },
       { status: 500 }
     );
   }
@@ -30,7 +62,7 @@ export async function GET() {
 export async function PATCH(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session || session.user.role !== "admin") {
+    if (!session || !session.user.permissions?.includes("admin_panel")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

@@ -29,7 +29,7 @@ export async function POST(
 
     // Access: owner, agent, or admin
     const isOwner = business.owner.toString() === session.user.id;
-    const isStaff = ["agent", "admin"].includes(session.user.role);
+    const isStaff = session.user.permissions?.includes("agent_panel") || session.user.permissions?.includes("admin_panel");
     if (!isOwner && !isStaff) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
@@ -116,7 +116,7 @@ export async function DELETE(
     }
 
     const isOwner = business.owner.toString() === session.user.id;
-    const isStaff = ["agent", "admin"].includes(session.user.role);
+    const isStaff = session.user.permissions?.includes("agent_panel") || session.user.permissions?.includes("admin_panel");
     if (!isOwner && !isStaff) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }

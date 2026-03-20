@@ -4,25 +4,49 @@ import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import type { IBusiness } from "@/types";
+import Breadcrumbs from "@/components/Breadcrumbs";
 
 export default function AdminBusinessesPage() {
   const { data: session, status: authStatus } = useSession();
   const [businesses, setBusinesses] = useState<IBusiness[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [toggling, setToggling] = useState<string | null>(null);
   const [filter, setFilter] = useState<"all" | "active" | "inactive">("all");
 
   useEffect(() => {
-    if (session?.user?.role === "admin") {
+    if (session?.user?.permissions?.includes("admin_panel")) {
       fetch("/api/admin/businesses")
         .then((r) => r.json())
-        .then((data) => setBusinesses(data.businesses || []))
-        .catch(() => {})
+        .then((data) => {
+          if (data.error) {
+            setError(data.error);
+          } else {
+            setBusinesses(data.businesses || []);
+          }
+        })
+        .catch((err) => setError(err.message || "Failed to load"))
         .finally(() => setLoading(false));
     } else {
       setLoading(false);
     }
   }, [session]);
+
+  async function handleDeleteBusiness(bizId: string) {
+    if (!confirm("Are you sure you want to permanently delete this business?")) return;
+    try {
+      const res = await fetch("/api/admin/businesses", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ businessId: bizId }),
+      });
+      if (res.ok) {
+        setBusinesses((prev) => prev.filter((b) => b._id !== bizId));
+      }
+    } catch {
+      // silently fail
+    }
+  }
 
   async function toggleActive(bizId: string, isActive: boolean) {
     setToggling(bizId);
@@ -51,13 +75,29 @@ export default function AdminBusinessesPage() {
     );
   }
 
-  if (!session || session.user.role !== "admin") {
+  if (!session || !session.user.permissions?.includes("admin_panel")) {
     return (
       <div className="max-w-5xl mx-auto px-4 py-12 text-center">
         <span className="text-5xl">🔒</span>
         <h1 className="text-xl font-semibold text-gray-700 mt-4">
           Admin Only
         </h1>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-5xl mx-auto px-4 py-12 text-center">
+        <div className="bg-red-50 text-red-600 rounded-xl p-6">
+          <p className="font-medium">Error: {error}</p>
+          <button
+            onClick={() => { setError(""); setLoading(true); window.location.reload(); }}
+            className="mt-3 text-sm underline hover:text-red-800"
+          >
+            Try again
+          </button>
+        </div>
       </div>
     );
   }
@@ -70,14 +110,15 @@ export default function AdminBusinessesPage() {
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8">
+      <Breadcrumbs
+        items={[
+          { label: "Home", href: "/" },
+          { label: "Admin Panel", href: "/admin" },
+          { label: "All Businesses" },
+        ]}
+      />
       <div className="flex items-center justify-between mb-2">
         <h1 className="text-2xl font-bold text-gray-800">All Businesses</h1>
-        <Link
-          href="/admin"
-          className="text-sm text-blue-600 hover:underline"
-        >
-          ← Back to Admin
-        </Link>
       </div>
       <p className="text-gray-500 mb-6">
         {businesses.length} total businesses registered on VIPANI
@@ -117,12 +158,15 @@ export default function AdminBusinessesPage() {
               key={biz._id}
               className="bg-white rounded-xl border border-gray-100 p-4 flex items-center justify-between"
             >
-              <div className="flex-1 min-w-0">
+              <Link
+                href={`/business/${biz._id}`}
+                className="flex-1 min-w-0 hover:opacity-80 transition"
+              >
                 <div className="flex items-center gap-2">
                   <span className="text-lg">
                     {biz.category?.icon || "🏪"}
                   </span>
-                  <h3 className="font-semibold text-gray-800 truncate">
+                  <h3 className="font-semibold text-gray-800 truncate hover:text-blue-600">
                     {biz.name}
                   </h3>
                   <span
@@ -141,18 +185,32 @@ export default function AdminBusinessesPage() {
                 <p className="text-xs text-gray-400 mt-0.5">
                   Owner: {biz.owner?.name || "N/A"} ({biz.owner?.phone || "N/A"}) · Biz Phone: {biz.phone}
                 </p>
+              </Link>
+              <div className="flex items-center gap-2 ml-4">
+                <Link
+                  href={`/business-panel/businesses/edit/${biz._id}`}
+                  className="px-3 py-1.5 text-xs font-medium rounded-lg border text-blue-600 border-blue-200 hover:bg-blue-50 transition"
+                >
+                  Edit
+                </Link>
+                <button
+                  onClick={() => toggleActive(biz._id, !biz.isActive)}
+                  disabled={toggling === biz._id}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition disabled:opacity-50 ${
+                    biz.isActive
+                      ? "text-red-600 border-red-200 hover:bg-red-50"
+                      : "text-green-600 border-green-200 hover:bg-green-50"
+                  }`}
+                >
+                  {biz.isActive ? "Deactivate" : "Activate"}
+                </button>
+                <button
+                  onClick={() => handleDeleteBusiness(biz._id)}
+                  className="px-3 py-1.5 text-xs font-medium rounded-lg border text-red-600 border-red-200 hover:bg-red-50 transition"
+                >
+                  Delete
+                </button>
               </div>
-              <button
-                onClick={() => toggleActive(biz._id, !biz.isActive)}
-                disabled={toggling === biz._id}
-                className={`ml-4 px-3 py-1.5 text-xs font-medium rounded-lg transition disabled:opacity-50 ${
-                  biz.isActive
-                    ? "bg-red-50 text-red-600 hover:bg-red-100"
-                    : "bg-green-50 text-green-600 hover:bg-green-100"
-                }`}
-              >
-                {biz.isActive ? "Deactivate" : "Activate"}
-              </button>
             </div>
           ))}
         </div>
